@@ -1,19 +1,29 @@
 {
-  "name": "horizon-cli",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@kshitiz-2002/horizon-cli",
+  "version": "1.0.2",
+  "description": "Horizon CLI - Your personal AI terminal assistant using Gemini",
   "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "bin": {
-    "horizon": "./dist/index.js"
+    "horizon": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "start": "node ./dist/index.js",
     "dev": "tsx src/index.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "ai",
+    "cli",
+    "gemini",
+    "assistant",
+    "terminal"
+  ],
+  "author": "Kshitiz Prakash",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@google/genai": "^1.43.0",

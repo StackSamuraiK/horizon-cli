@@ -18,7 +18,7 @@ Be concise and helpful.`;
 export async function createChat() {
     const ai = getClient();
     const chat = ai.chats.create({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         config: {
             systemInstruction: systemPrompt,
             tools: [{ functionDeclarations: toolDeclarations }],
