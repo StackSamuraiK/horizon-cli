@@ -1,6 +1,6 @@
 {
   "name": "@kshitiz-2002/horizon-cli",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Horizon CLI - Your personal AI terminal assistant using Gemini",
   "main": "dist/index.js",
   "files": [
@@ -13,7 +13,8 @@
     "build": "tsc",
     "prepare": "npm run build",
     "start": "node ./dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "postinstall": "node ./dist/postinstall.js"
   },
   "keywords": [
     "ai",
