@@ -1,65 +1,139 @@
-import { input } from '@inquirer/prompts';
+import * as readline from 'readline';
 import chalk from 'chalk';
 import { createChat } from './ai.js';
 import { handleToolCall } from './tools/index.js';
+import { spin, killSpin, showTool, showDone, showToolError, showAI, showError } from './ui.js';
 
-import { getPromptCount, incrementPromptCount } from './config.js';
+const MAX_ITERATIONS = 50;
 
 export async function startRepl() {
     const chat = await createChat();
 
-    while (true) {
-        const userMessage = await input({ message: chalk.blue('You:') });
+    console.log(chalk.dim(`  Working in ${chalk.white(process.cwd())}`));
+    console.log(chalk.dim(`  Type a task and press Enter. ${chalk.yellow('Ctrl+C')} to exit.`));
+    console.log('');
 
-        if (userMessage.toLowerCase() === 'exit' || userMessage.toLowerCase() === 'quit') {
-            console.log(chalk.yellow('Goodbye!'));
-            break;
+    let busy = false;
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        historySize: 100,
+        removeHistoryDuplicates: true,
+    });
+
+    const prompt = () => {
+        rl.setPrompt(chalk.cyan.bold('  ❯ '));
+        rl.prompt();
+    };
+
+    prompt();
+
+    rl.on('line', async (line) => {
+        const input = line.trim();
+
+        if (busy) {
+            console.log(chalk.dim('  Please wait for the current task to finish…'));
+            prompt();
+            return;
         }
 
-        if (!userMessage.trim()) continue;
+        if (['exit', 'quit', 'q'].includes(input.toLowerCase())) {
+            console.log(chalk.dim('\n  Goodbye!\n'));
+            rl.close();
+            return;
+        }
 
-        try {
-            incrementPromptCount();
-            const count = getPromptCount();
-            if (count > 15 && count <= 20) {
-                console.log(chalk.yellow(`⚠️ Warning: You only have ${20 - count + 1} free LLM requests available until the 20 free limit.`));
-            }
+        if (!input) {
+            prompt();
+            return;
+        }
 
-            let response = await chat.sendMessage({ message: userMessage });
+        busy = true;
+        await agentLoop(input, chat);
+        busy = false;
+        prompt();
+    });
 
-            // Handle tool calls iteratively
-            while (response.functionCalls && response.functionCalls.length > 0) {
-                console.log(chalk.gray(`[Horizon is thinking and using tools...]`));
+    rl.on('close', () => {
+        killSpin();
+        process.exit(0);
+    });
+}
 
-                const toolResponses = [];
-                for (const call of response.functionCalls) {
-                    const name = call.name || '';
-                    console.log(chalk.dim(`  Running ${name}...`));
-                    const result = await handleToolCall(name, call.args);
-                    toolResponses.push({
-                        functionResponse: {
-                            name: call.name,
-                            response: { result }
-                        }
-                    });
+// ─── Agent Loop ────────────────────────────────────────────
+
+async function agentLoop(userMessage: string, chat: any) {
+    spin('Thinking…');
+
+    try {
+        let response = await chat.sendMessage({ message: userMessage });
+        let iterations = 0;
+
+        while (
+            response.functionCalls &&
+            response.functionCalls.length > 0 &&
+            iterations < MAX_ITERATIONS
+        ) {
+            iterations++;
+            killSpin();
+
+            const toolResponses: any[] = [];
+
+            for (const call of response.functionCalls) {
+                const name: string = call.name || '';
+                const args: Record<string, string> = call.args || {};
+
+                // Pick a human-readable detail for display
+                const detail =
+                    args.command ||
+                    args.path ||
+                    args.question ||
+                    args.pattern ||
+                    args.query ||
+                    args.directory ||
+                    '';
+
+                showTool(name, detail);
+
+                const result = await handleToolCall(name, args);
+
+                if (result.startsWith('Error')) {
+                    showToolError(result);
+                } else {
+                    showDone();
                 }
 
-                response = await chat.sendMessage({ message: toolResponses as any });
+                toolResponses.push({
+                    functionResponse: {
+                        name: call.name,
+                        response: { result },
+                    },
+                });
             }
 
-            console.log(chalk.green('\nHorizon:'));
-            console.log(response.text);
-            console.log();
+            spin('Thinking…');
+            response = await chat.sendMessage({ message: toolResponses });
+        }
 
-        } catch (err: any) {
-            const isLimitError = err.status === 429 ||
-                (err.message && (err.message.includes('429') || err.message.toLowerCase().includes('quota') || err.message.toLowerCase().includes('limit')));
+        killSpin();
 
-            if (isLimitError) {
-                console.error(chalk.red('\nError: the request limit may be out try another api key'));
-            } else {
-                console.error(chalk.red('\nError communicating with AI:'), err.message);
-            }
+        if (response.text) {
+            showAI(response.text);
+        }
+    } catch (err: any) {
+        killSpin();
+        const msg: string = err?.message || String(err);
+        const isLimit =
+            err?.status === 429 ||
+            msg.includes('429') ||
+            msg.toLowerCase().includes('quota') ||
+            msg.toLowerCase().includes('limit');
+
+        if (isLimit) {
+            showError('Rate limit reached.', 'Wait a moment or switch your API key.');
+        } else {
+            showError('Something went wrong.', msg);
         }
     }
 }
