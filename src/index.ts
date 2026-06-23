@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { input } from '@inquirer/prompts';
+import { password } from '@inquirer/prompts';
 import chalk from 'chalk';
 import * as dotenv from 'dotenv';
 import { setApiKey, getApiKey, removeApiKey } from './config.js';
 import { startRepl } from './repl.js';
-import { createChat } from './ai.js';
-import { handleToolCall } from './tools/index.js';
-import { spin, killSpin, showTool, showDone, showToolError, showAI, showError } from './ui.js';
+import { Agent } from './agent.js';
 import { printBanner } from './banner.js';
 
 dotenv.config();
@@ -38,8 +36,9 @@ program
             console.log('');
         }
 
-        const apiKey = await input({
+        const apiKey = await password({
             message: chalk.white('  Enter your Google Gemini API key:'),
+            mask: true,
             validate: (v: string) => (v.trim().length > 0 ? true : 'API key cannot be empty'),
         });
 
@@ -93,63 +92,8 @@ program
         console.log(`  ${chalk.cyan('◈')}  ${chalk.white('Prompt:')} ${chalk.dim(prompt)}`);
         console.log('');
 
-        spin('Thinking…');
-
-        try {
-            const chat = await createChat();
-            let response = await chat.sendMessage({ message: prompt });
-            let iterations = 0;
-
-            while (
-                response.functionCalls &&
-                response.functionCalls.length > 0 &&
-                iterations < 50
-            ) {
-                iterations++;
-                killSpin();
-
-                const toolResponses: any[] = [];
-                for (const call of response.functionCalls) {
-                    const name = call.name || '';
-                    const args = (call.args || {}) as Record<string, string>;
-                    const detail =
-                        args.command || args.path || args.question || args.pattern || args.query || args.directory || '';
-
-                    showTool(name, detail);
-                    const result = await handleToolCall(name, args);
-
-                    if (result.startsWith('Error')) {
-                        showToolError(result);
-                    } else {
-                        showDone();
-                    }
-
-                    toolResponses.push({
-                        functionResponse: { name: call.name, response: { result } },
-                    });
-                }
-
-                spin('Thinking…');
-                response = await chat.sendMessage({ message: toolResponses });
-            }
-
-            killSpin();
-            if (response.text) showAI(response.text);
-        } catch (err: any) {
-            killSpin();
-            const msg: string = err?.message || String(err);
-            const isLimit =
-                err?.status === 429 ||
-                msg.includes('429') ||
-                msg.toLowerCase().includes('quota') ||
-                msg.toLowerCase().includes('limit');
-
-            if (isLimit) {
-                showError('Rate limit reached.', 'Wait a moment or switch your API key.');
-            } else {
-                showError('Something went wrong.', msg);
-            }
-        }
+        const agent = await Agent.create();
+        await agent.run(prompt);
     });
 
 program.parse(process.argv);
