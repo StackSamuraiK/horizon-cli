@@ -99,6 +99,25 @@ export const toolDeclarations: FunctionDeclaration[] = [
             required: ['question'],
         },
     },
+    {
+        name: 'delegate',
+        description: 'Spin up a sub-agent to work on a sub-task independently. ' +
+            'The sub-agent has the same tools (read, write, run, search, etc.) ' +
+            'and its own context window. Use for complex sub-tasks that can ' +
+            'run independently — especially when a task involves multiple ' +
+            'independent files, concerns, or domains.',
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                task: {
+                    type: Type.STRING,
+                    description: 'The full, self-contained task description for the sub-agent. ' +
+                        'Include all context, constraints, file paths, and expected output format.',
+                },
+            },
+            required: ['task'],
+        },
+    },
 ];
 
 // ─── Tool Handler ──────────────────────────────────────────
@@ -178,6 +197,10 @@ export async function handleToolCall(
             // ── ask user ──────────────────────────────────
             case 'askUser': {
                 return await askUserInput(args.question);
+            }
+
+            case 'delegate': {
+                return 'Error: delegate must be handled by the Agent orchestrator, not directly.';
             }
 
             default:
