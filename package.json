@@ -1,6 +1,6 @@
 {
   "name": "@kshitiz-2002/horizon-cli",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Horizon — your autonomous AI terminal agent powered by Gemini",
   "main": "dist/index.js",
   "files": [

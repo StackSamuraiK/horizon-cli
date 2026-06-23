@@ -18,7 +18,7 @@ export function printBanner() {
     }
     console.log('');
     console.log(
-        `  ${chalk.gray('v2.0.1')}  ${chalk.dim('·')}  ${chalk.hex('#7755FF')('autonomous terminal agent')}  ${chalk.dim('·')}  ${chalk.gray('github.com/StackSamuraiK/horizon-cli')}`,
+        `  ${chalk.gray('v2.1.0')}  ${chalk.dim('·')}  ${chalk.hex('#7755FF')('autonomous terminal agent')}  ${chalk.dim('·')}  ${chalk.gray('github.com/StackSamuraiK/horizon-cli')}`,
     );
     console.log(chalk.dim(`  ${'─'.repeat(61)}`));
     console.log(`  ${chalk.yellow('tip')} ${chalk.dim('→')} run ${chalk.cyan('horizon auth')} to configure your API key`);
